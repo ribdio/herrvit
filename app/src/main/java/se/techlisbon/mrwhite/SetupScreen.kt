@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
 
@@ -61,8 +62,19 @@ fun SetupScreen(onStart: (List<Player>) -> Unit) {
     var wordStatus by remember { mutableStateOf<String?>(null) }
     var showInstructions by remember { mutableStateOf(false) }
 
-    val maxUndercovers = floor((names.size - 2) / 2.0).toInt().coerceAtLeast(1)
     var undercoverCount by remember { mutableIntStateOf(0) } // 0 = random
+    var mrWhiteCount by remember { mutableIntStateOf(0) } // 0 = random (linked to undercover)
+
+    // Calculate max impostors (undercovers + mr whites) - must be < half of players
+    val maxImpostors = floor((names.size - 2) / 2.0).toInt().coerceAtLeast(1)
+
+    // When calculating maxUndercovers, if mrWhiteCount is random (0), assume at least 1
+    val effectiveMrWhiteForUndercover = if (mrWhiteCount == 0) 1 else mrWhiteCount
+    val maxUndercovers = (maxImpostors - effectiveMrWhiteForUndercover + 1).coerceAtLeast(0)
+
+    // When calculating maxMrWhites, if undercoverCount is random (0), assume at least 1
+    val effectiveUndercoverForMrWhite = if (undercoverCount == 0) 1 else undercoverCount
+    val maxMrWhites = (maxImpostors - effectiveUndercoverForMrWhite + 1).coerceAtLeast(1)
 
     // Reorderable state
     val lazyListState = rememberLazyListState()
@@ -192,12 +204,13 @@ fun SetupScreen(onStart: (List<Player>) -> Unit) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Undercover count slider
+        // Role configuration sliders
         if (names.size >= 4) {
             Card(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
+                    // Undercover slider
                     Text(
                         text = if (undercoverCount == 0) {
                             "Undercovers: Random (10-40%)"
@@ -210,17 +223,80 @@ fun SetupScreen(onStart: (List<Player>) -> Unit) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Slider(
                         value = undercoverCount.toFloat(),
-                        onValueChange = { undercoverCount = it.toInt() },
+                        onValueChange = {
+                            undercoverCount = it.toInt()
+                            // When undercovers are random, Mr. White must also be random
+                            if (undercoverCount == 0) {
+                                mrWhiteCount = 0
+                            } else if (mrWhiteCount == 0) {
+                                // If switching from random to fixed, set Mr. White to 1
+                                mrWhiteCount = 1
+                            }
+                            // Adjust mrWhiteCount if needed to maintain constraint
+                            if (undercoverCount > 0 && mrWhiteCount > 0 && undercoverCount + mrWhiteCount > maxImpostors + 1) {
+                                mrWhiteCount = (maxImpostors - undercoverCount + 1).coerceAtLeast(1)
+                            }
+                        },
                         valueRange = 0f..maxUndercovers.toFloat(),
-                        steps = maxUndercovers - 1,
+                        steps = if (maxUndercovers > 0) maxUndercovers - 1 else 0,
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Mr. White slider
                     Text(
-                        text = if (undercoverCount == 0) {
-                            "Civilians: ${names.size - 1} (varies)"
+                        text = if (mrWhiteCount == 0) {
+                            "Mr. White: Random (auto)"
                         } else {
-                            "Civilians: ${names.size - undercoverCount - 1} | Mr. White: 1"
+                            "Mr. White: $mrWhiteCount"
                         },
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Slider(
+                        value = mrWhiteCount.toFloat(),
+                        onValueChange = {
+                            val newValue = it.toInt()
+                            // Don't allow changing if undercovers are random
+                            if (undercoverCount > 0) {
+                                mrWhiteCount = newValue
+                                // Adjust undercoverCount if needed to maintain constraint
+                                if (undercoverCount + mrWhiteCount > maxImpostors + 1) {
+                                    undercoverCount = (maxImpostors - mrWhiteCount + 1).coerceAtLeast(0)
+                                }
+                            }
+                        },
+                        valueRange = 1f..maxMrWhites.toFloat(),
+                        steps = if (maxMrWhites > 1) maxMrWhites - 2 else 0,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = undercoverCount > 0  // Disable when undercovers are random
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Summary text
+                    val actualUndercover = if (undercoverCount == 0) {
+                        val minU = ceil(names.size * 0.1).toInt()
+                        val maxU = floor((names.size - 2) / 2.0).toInt()
+                        "$minU-$maxU"
+                    } else {
+                        undercoverCount.toString()
+                    }
+                    val actualMrWhite = if (mrWhiteCount == 0) {
+                        "g1-$maxMrWhites"
+                    } else {
+                        mrWhiteCount.toString()
+                    }
+                    val civilianCount = if (undercoverCount == 0 || mrWhiteCount == 0) {
+                        "varies"
+                    } else {
+                        (names.size - undercoverCount - mrWhiteCount).toString()
+                    }
+
+                    Text(
+                        text = "Civilians: $civilianCount | Undercovers: $actualUndercover | Mr. White: $actualMrWhite",
                         fontSize = 12.sp,
                         color = Color.Gray
                     )
@@ -283,7 +359,7 @@ fun SetupScreen(onStart: (List<Player>) -> Unit) {
 
                     val words = loadedWords ?: wordLoader.loadWords("").getOrNull()!!
                     val wordPair = words.random()
-                    val players = GameEngine.createGame(names, wordPair, undercoverCount)
+                    val players = GameEngine.createGame(names, wordPair, undercoverCount, mrWhiteCount)
                     onStart(players)
                 }
             },

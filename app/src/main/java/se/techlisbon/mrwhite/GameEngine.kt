@@ -8,7 +8,8 @@ object GameEngine {
     fun createGame(
         playerNames: List<String>,
         wordPair: Pair<String, String>,
-        undercoverCount: Int
+        undercoverCount: Int,
+        mrWhiteCount: Int = 1
     ): List<Player> {
         // Calculate undercovers if random (0 means random)
         val actualUndercoverCount = if (undercoverCount == 0) {
@@ -21,6 +22,15 @@ object GameEngine {
             undercoverCount
         }
 
+        // Calculate Mr. Whites if random (0 means random)
+        // Rule: max 1 Mr. White per 3 undercovers, but at least 1
+        val actualMrWhiteCount = if (mrWhiteCount == 0) {
+            val maxMrWhites = (actualUndercoverCount / 3).coerceAtLeast(1)
+            (1..maxMrWhites).random()
+        } else {
+            mrWhiteCount
+        }
+
         // Randomly decide which word goes to which role
         val (civilianWord, undercoverWord) = if (kotlin.random.Random.nextBoolean()) {
             wordPair.first to wordPair.second
@@ -31,8 +41,10 @@ object GameEngine {
         // Create a list of roles and shuffle them
         val roles = mutableListOf<Pair<Role, String>>()
 
-        // 1 Mr. White
-        roles.add(Role.MR_WHITE to "")
+        // N Mr. Whites
+        repeat(actualMrWhiteCount) {
+            roles.add(Role.MR_WHITE to "")
+        }
 
         // N Undercovers
         repeat(actualUndercoverCount) {
@@ -40,7 +52,7 @@ object GameEngine {
         }
 
         // Rest are Civilians
-        val civilianCount = playerNames.size - actualUndercoverCount - 1
+        val civilianCount = playerNames.size - actualUndercoverCount - actualMrWhiteCount
         repeat(civilianCount) {
             roles.add(Role.CIVILIAN to civilianWord)
         }

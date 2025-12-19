@@ -76,19 +76,18 @@ fun MrWhiteApp() {
                         onContinue = {
                             // Check if Mr. White was eliminated
                             if (currentScreen.eliminated.role == Role.MR_WHITE) {
-                                screen = Screen.MrWhiteGuess(currentScreen.players)
+                                // Pass eliminated list to MrWhiteGuess so it can check if other Mr. Whites remain
+                                screen = Screen.MrWhiteGuess(currentScreen.players, currentScreen.allEliminated)
                             } else {
-                                val mrWhiteAlive = currentScreen.players.any {
-                                    it.role == Role.MR_WHITE && !currentScreen.allEliminated.contains(it.name)
-                                }
                                 val alivePlayers = currentScreen.players.filter {
                                     !currentScreen.allEliminated.contains(it.name)
                                 }
+                                val mrWhitesAlive = alivePlayers.count { it.role == Role.MR_WHITE }
                                 val aliveImpostors = alivePlayers.count { it.role == Role.UNDERCOVER || it.role == Role.MR_WHITE }
                                 val aliveCivilians = alivePlayers.count { it.role == Role.CIVILIAN }
 
                                 screen = when {
-                                    !mrWhiteAlive -> Screen.GameOver(currentScreen.players, "Civilians win!")
+                                    mrWhitesAlive == 0 -> Screen.GameOver(currentScreen.players, "Civilians win!")
                                     aliveCivilians < aliveImpostors -> Screen.GameOver(currentScreen.players, "Impostors win!")
                                     alivePlayers.size <= 2 -> Screen.GameOver(currentScreen.players, "Mr. White wins!")
                                     else -> Screen.Vote(currentScreen.players, currentScreen.allEliminated)
@@ -99,8 +98,25 @@ fun MrWhiteApp() {
                     )
                     is Screen.MrWhiteGuess -> MrWhiteGuessScreen(
                         players = currentScreen.players,
-                        onResult = { winner ->
+                        eliminated = currentScreen.eliminated,
+                        onGameOver = { winner ->
                             screen = Screen.GameOver(currentScreen.players, winner)
+                        },
+                        onContinue = { eliminatedList ->
+                            // Continue game - check win conditions and go back to vote if game continues
+                            val alivePlayers = currentScreen.players.filter {
+                                !eliminatedList.contains(it.name)
+                            }
+                            val mrWhitesAlive = alivePlayers.count { it.role == Role.MR_WHITE }
+                            val aliveImpostors = alivePlayers.count { it.role == Role.UNDERCOVER || it.role == Role.MR_WHITE }
+                            val aliveCivilians = alivePlayers.count { it.role == Role.CIVILIAN }
+
+                            screen = when {
+                                mrWhitesAlive == 0 -> Screen.GameOver(currentScreen.players, "Civilians win!")
+                                aliveCivilians < aliveImpostors -> Screen.GameOver(currentScreen.players, "Impostors win!")
+                                alivePlayers.size <= 2 -> Screen.GameOver(currentScreen.players, "Mr. White wins!")
+                                else -> Screen.Vote(currentScreen.players, eliminatedList)
+                            }
                         },
                         onCancel = { showCancelDialog = true }
                     )

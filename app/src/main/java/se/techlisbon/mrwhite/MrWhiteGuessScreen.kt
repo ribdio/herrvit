@@ -34,7 +34,9 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun MrWhiteGuessScreen(
     players: List<Player>,
-    onResult: (String) -> Unit,
+    eliminated: List<String> = emptyList(),
+    onGameOver: (String) -> Unit,
+    onContinue: (List<String>) -> Unit,
     onCancel: () -> Unit
 ) {
     var mrWhiteGuess by remember { mutableStateOf("") }
@@ -79,12 +81,23 @@ fun MrWhiteGuessScreen(
             Button(
                 onClick = {
                     val result = GameEngine.checkMrWhiteGuess(mrWhiteGuess, players)
-                    val winner = when (result) {
-                        GuessResult.CIVILIAN_WORD -> "Mr. White wins!"
-                        GuessResult.UNDERCOVER_WORD -> "Undercovers win!"
-                        GuessResult.WRONG -> "Civilians win!"
+                    when (result) {
+                        GuessResult.CIVILIAN_WORD -> onGameOver("Mr. White wins!")
+                        GuessResult.UNDERCOVER_WORD -> onGameOver("Undercovers win!")
+                        GuessResult.WRONG -> {
+                            // Check if other Mr. Whites are still alive
+                            val alivePlayers = players.filter { !eliminated.contains(it.name) }
+                            val mrWhitesAlive = alivePlayers.count { it.role == Role.MR_WHITE }
+
+                            if (mrWhitesAlive == 0) {
+                                // No Mr. Whites remain, civilians win
+                                onGameOver("Civilians win!")
+                            } else {
+                                // Other Mr. Whites alive, continue game
+                                onContinue(eliminated)
+                            }
+                        }
                     }
-                    onResult(winner)
                 },
                 enabled = mrWhiteGuess.isNotBlank(),
                 modifier = Modifier
