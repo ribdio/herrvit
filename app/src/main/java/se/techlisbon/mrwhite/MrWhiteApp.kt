@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 
 @Composable
 fun MrWhiteApp() {
+    val context = androidx.compose.ui.platform.LocalContext.current
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         Box(
             modifier = Modifier
@@ -49,7 +50,7 @@ fun MrWhiteApp() {
                                     Screen.Reveal(currentScreen.players, currentScreen.index + 1, currentScreen.eliminated)
                                 } else {
                                     // Shuffle players for speaking order before starting
-                                    val shuffledPlayers = weightedShuffle(currentScreen.players)
+                                    val shuffledPlayers = weightedShuffle(context, currentScreen.players)
                                     Screen.StartAnnouncement(shuffledPlayers, currentScreen.eliminated)
                                 }
                             },

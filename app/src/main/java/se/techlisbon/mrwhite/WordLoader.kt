@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.SecureRandom
 
 class WordLoader {
     // Default fallback words
@@ -253,8 +254,9 @@ class WordLoader {
         // Get available indices
         val availableIndices = (0 until words.size).filter { it !in playedPairs }
 
-        // Pick random from available
-        val pickedIndex = availableIndices.random()
+        // Pick random from available using SecureRandom
+        val secureRandom = SecureRandom()
+        val pickedIndex = availableIndices[secureRandom.nextInt(availableIndices.size)]
 
         // Save picked index to played set
         val newPlayedPairs = playedPairs + pickedIndex

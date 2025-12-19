@@ -9,6 +9,7 @@ object PrefsManager {
     private const val KEY_PLAYERS = "players"
     private const val KEY_PLAYED_PAIRS = "played_pairs"
     private const val KEY_WORD_SOURCE_HASH = "word_source_hash"
+    private const val KEY_LAST_STARTER = "last_starter"
 
     fun saveWordUrl(context: Context, url: String) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -70,5 +71,18 @@ object PrefsManager {
                 .edit {
                     remove(KEY_PLAYED_PAIRS)
                 }
+    }
+
+    // Last starter tracking for fair RNG
+    fun saveLastStarter(context: Context, playerName: String) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit {
+                    putString(KEY_LAST_STARTER, playerName)
+                }
+    }
+
+    fun getLastStarter(context: Context): String {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(KEY_LAST_STARTER, "") ?: ""
     }
 }
