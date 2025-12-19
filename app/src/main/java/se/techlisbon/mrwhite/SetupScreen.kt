@@ -11,10 +11,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -33,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,6 +44,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.math.floor
 import kotlin.math.max
 
@@ -48,7 +53,7 @@ import kotlin.math.max
 fun SetupScreen(onStart: (List<Player>) -> Unit) {
     val context = LocalContext.current
 
-    var names by remember { mutableStateOf(PrefsManager.getPlayers(context)) }
+    val names = remember { PrefsManager.getPlayers(context).toMutableStateList() }
     var newName by remember { mutableStateOf("") }
     var wordUrl by remember { mutableStateOf(PrefsManager.getWordUrl(context)) }
     var loadedWords by remember { mutableStateOf<List<Pair<String, String>>?>(null) }
@@ -58,6 +63,15 @@ fun SetupScreen(onStart: (List<Player>) -> Unit) {
 
     val maxUndercovers = floor((names.size - 2) / 2.0).toInt().coerceAtLeast(1)
     var undercoverCount by remember { mutableIntStateOf(0) } // 0 = random
+
+    // Reorderable state
+    val lazyListState = rememberLazyListState()
+    val reorderableState = rememberReorderableLazyListState(
+        lazyListState = lazyListState,
+        onMove = { from, to ->
+            names.add(to.index, names.removeAt(from.index))
+        }
+    )
 
     val scope = rememberCoroutineScope()
     val wordLoader = remember { WordLoader() }
@@ -157,7 +171,7 @@ fun SetupScreen(onStart: (List<Player>) -> Unit) {
             IconButton(
                 onClick = {
                     if (newName.isNotBlank() && !names.any { it.equals(newName.trim(), ignoreCase = true) }) {
-                        names = names + newName.trim()
+                        names.add(newName.trim())
                         newName = ""
                     }
                 },
@@ -216,26 +230,41 @@ fun SetupScreen(onStart: (List<Player>) -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // Player list
+        // Player list with drag-and-drop
         LazyColumn(
+            state = lazyListState,
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            itemsIndexed(names) { index, name ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+            itemsIndexed(names, key = { _, name -> name }) { index, name ->
+                ReorderableItem(reorderableState, key = name) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("${index + 1}. $name")
-                        IconButton(onClick = {
-                            names = names.filterIndexed { i, _ -> i != index }
-                            undercoverCount = minOf(undercoverCount, maxOf(0, floor((names.size / 2.0)).toInt() - 1))
-                        }) {
-                            Icon(Icons.Default.Delete, "Remove")
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Menu,
+                                    contentDescription = "Drag to reorder",
+                                    modifier = Modifier.draggableHandle()
+                                )
+                                Text(name)
+                            }
+                            IconButton(onClick = {
+                                names.removeAt(index)
+                                undercoverCount = minOf(undercoverCount, maxOf(0, floor((names.size / 2.0)).toInt() - 1))
+                            }) {
+                                Icon(Icons.Default.Delete, "Remove")
+                            }
                         }
                     }
                 }
