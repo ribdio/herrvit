@@ -48,7 +48,9 @@ fun MrWhiteApp() {
                                 screen = if (currentScreen.index < alivePlayers.size - 1) {
                                     Screen.Reveal(currentScreen.players, currentScreen.index + 1, currentScreen.eliminated)
                                 } else {
-                                    Screen.StartAnnouncement(currentScreen.players, currentScreen.eliminated)
+                                    // Shuffle players for speaking order before starting
+                                    val shuffledPlayers = weightedShuffle(currentScreen.players)
+                                    Screen.StartAnnouncement(shuffledPlayers, currentScreen.eliminated)
                                 }
                             },
                             onCancel = { showCancelDialog = true }

@@ -28,27 +28,32 @@ object GameEngine {
             wordPair.second to wordPair.first
         }
 
-        // Assign roles
-        val shuffled = playerNames.shuffled().toMutableList()
-        val players = mutableListOf<Player>()
+        // Create a list of roles and shuffle them
+        val roles = mutableListOf<Pair<Role, String>>()
 
         // 1 Mr. White
-        players.add(Player(shuffled.removeAt(0), Role.MR_WHITE, ""))
+        roles.add(Role.MR_WHITE to "")
 
         // N Undercovers
         repeat(actualUndercoverCount) {
-            if (shuffled.isNotEmpty()) {
-                players.add(Player(shuffled.removeAt(0), Role.UNDERCOVER, undercoverWord))
-            }
+            roles.add(Role.UNDERCOVER to undercoverWord)
         }
 
         // Rest are Civilians
-        shuffled.forEach { name ->
-            players.add(Player(name, Role.CIVILIAN, civilianWord))
+        val civilianCount = playerNames.size - actualUndercoverCount - 1
+        repeat(civilianCount) {
+            roles.add(Role.CIVILIAN to civilianWord)
         }
 
-        // Shuffle and pick random starter
-        return weightedShuffle(players)
+        // Shuffle roles and assign to players in their original order
+        val shuffledRoles = roles.shuffled()
+        val players = playerNames.mapIndexed { index, name ->
+            val (role, word) = shuffledRoles[index]
+            Player(name, role, word)
+        }
+
+        // Return players in original order (no weighted shuffle here)
+        return players
     }
 
     // Extension function on String to perform the normalization
