@@ -358,7 +358,7 @@ fun SetupScreen(onStart: (List<Player>) -> Unit) {
                     PrefsManager.savePlayers(context, names)
 
                     val words = loadedWords ?: wordLoader.loadWords("").getOrNull()!!
-                    val wordPair = words.random()
+                    val wordPair = wordLoader.pickWordPair(context, words, wordUrl)
                     val players = GameEngine.createGame(names, wordPair, undercoverCount, mrWhiteCount)
                     onStart(players)
                 }

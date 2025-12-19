@@ -1,5 +1,6 @@
 package se.techlisbon.mrwhite
 
+import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
@@ -215,5 +216,50 @@ class WordLoader {
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    /**
+     * Picks a word pair from the list using a "shuffled playlist" approach.
+     * Won't repeat pairs until all have been used, then resets.
+     */
+    fun pickWordPair(
+        context: Context,
+        words: List<Pair<String, String>>,
+        sourceUrl: String
+    ): Pair<String, String> {
+        // Compute source hash to detect word list changes
+        val sourceHash = "${sourceUrl}_${words.size}"
+
+        // Check if word source has changed
+        val savedHash = PrefsManager.getWordSourceHash(context)
+        if (savedHash != sourceHash) {
+            // Word source changed - reset tracking
+            PrefsManager.clearPlayedPairs(context)
+            PrefsManager.saveWordSourceHash(context, sourceHash)
+        }
+
+        // Get played pairs
+        var playedPairs = PrefsManager.getPlayedPairs(context)
+
+        // Filter out invalid indices (in case word list shrunk)
+        playedPairs = playedPairs.filter { it < words.size }.toSet()
+
+        // If all pairs have been played, reset
+        if (playedPairs.size >= words.size) {
+            playedPairs = emptySet()
+            PrefsManager.clearPlayedPairs(context)
+        }
+
+        // Get available indices
+        val availableIndices = (0 until words.size).filter { it !in playedPairs }
+
+        // Pick random from available
+        val pickedIndex = availableIndices.random()
+
+        // Save picked index to played set
+        val newPlayedPairs = playedPairs + pickedIndex
+        PrefsManager.savePlayedPairs(context, newPlayedPairs)
+
+        return words[pickedIndex]
     }
 }

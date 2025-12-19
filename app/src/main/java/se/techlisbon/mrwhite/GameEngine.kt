@@ -43,7 +43,7 @@ object GameEngine {
 
         // N Mr. Whites
         repeat(actualMrWhiteCount) {
-            roles.add(Role.MR_WHITE to "")
+            roles.add(Role.MR_WHITE to "?".repeat(civilianWord.length))
         }
 
         // N Undercovers
